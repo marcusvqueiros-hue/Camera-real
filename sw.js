@@ -1,5 +1,5 @@
 /* Guarda o app no celular para abrir sem internet. Chamadas ao Supabase e ao mapa passam direto. */
-const CACHE = 'camera-real-v2';
+const CACHE = 'camera-real-v3';
 const LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
 const SHELL = [LIB, './', 'index.html', 'app.js', 'style.css', 'manifest.webmanifest', 'icon.svg'];
 

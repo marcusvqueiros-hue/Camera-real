@@ -114,7 +114,8 @@ function setUser(u) {
   if (state.user) localStorage.setItem('cr_user', JSON.stringify(state.user));
   else localStorage.removeItem('cr_user');
   $('userEmail').textContent = state.user?.email || '';
-  if (state.user) { show('camera'); refreshBadge(); sync(); } else show('login');
+  updateAccountBtn();
+  show('camera'); refreshBadge(); sync();
 }
 
 /* ---------------- câmera ---------------- */
@@ -317,7 +318,8 @@ async function renderGallery() {
   const grid = $('grid');
   const pending = (await idb.all()).sort((a, b) => b.meta.taken_at.localeCompare(a.meta.taken_at));
   let cloud = state.cloud;
-  if (navigator.onLine) {
+  if (!state.user) cloud = [];
+  if (navigator.onLine && state.user) {
     const { data, error } = await sb.from('photos').select('*').order('taken_at', { ascending: false }).limit(1000);
     if (!error && data) {
       const paths = data.flatMap((p) => [p.storage_path, p.storage_path.replace(/\.jpg$/, '_t.jpg')]);
@@ -346,13 +348,14 @@ async function renderGallery() {
     img.src = p.pending ? URL.createObjectURL(p.thumbBlob) : (p.thumbUrl || '');
     const tag = document.createElement('span');
     tag.className = 'tag' + (p.pending ? ' wait' : '');
-    tag.textContent = p.pending ? 'aguardando envio' : fmtTime(d).slice(0, 5);
+    tag.textContent = p.pending ? (state.user ? 'aguardando envio' : 'no celular') : fmtTime(d).slice(0, 5);
     b.append(img, tag);
     b.onclick = () => openViewer(p);
     grid.append(b);
   }
   $('emptyMsg').hidden = all.length > 0;
-  if (!navigator.onLine) setSyncInfo('Sem internet: mostrando só as fotos guardadas neste celular.');
+  if (!state.user) setSyncInfo('Modo teste: as fotos ficam guardadas neste celular. Para enviar à nuvem, toque em Entrar no fim da galeria.');
+  else if (!navigator.onLine) setSyncInfo('Sem internet: mostrando só as fotos guardadas neste celular.');
 }
 
 function openViewer(p) {
@@ -437,7 +440,10 @@ $('btnSync').addEventListener('click', async () => { setSyncInfo(navigator.onLin
 $('btnCloseViewer').addEventListener('click', () => show('gallery'));
 $('btnDownload').addEventListener('click', downloadCurrent);
 $('btnDelete').addEventListener('click', deleteCurrent);
+function updateAccountBtn() { $('btnLogout').textContent = state.user ? 'Sair' : 'Entrar para salvar na nuvem'; $('userEmail').textContent = state.user?.email || ''; }
+$('btnBackLogin').addEventListener('click', () => show('camera'));
 $('btnLogout').addEventListener('click', async () => {
+  if (!state.user) { show('login'); return; }
   const n = await refreshBadge();
   if (n && !confirm(`Há ${n} foto(s) ainda não enviada(s). Elas continuam guardadas neste celular. Sair mesmo assim?`)) return;
   await sb.auth.signOut().catch(() => {});
@@ -476,9 +482,8 @@ $('installOk').addEventListener('click', () => { $('installHelp').hidden = true;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   updateNet();
-  $('userEmail').textContent = state.user?.email || '';
-  if (state.user) { show('camera'); refreshBadge(); sync(); }
-  else show('login');
+  updateAccountBtn();
+  show('camera'); refreshBadge(); sync();
   renderLive();
   showInstall();
 })();
