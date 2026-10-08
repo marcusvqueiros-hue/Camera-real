@@ -75,6 +75,7 @@ const toBlob = (c, q) => new Promise((r) => c.toBlob(r, 'image/jpeg', q));
 function show(id) {
   for (const s of ['login', 'camera', 'gallery', 'viewer']) $(s).hidden = s !== id;
   if (id === 'camera') startCamera(); else stopCamera();
+  if (typeof showInstall === 'function') showInstall();
 }
 
 function netBanner(msg, ok) {
@@ -455,6 +456,21 @@ sb.auth.onAuthStateChange((ev, session) => {
   if (ev === 'SIGNED_IN' && session && !state.user) setUser(session.user);
 });
 
+/* ---------------- instalar (baixar o app) ---------------- */
+let installEvt = null;
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function showInstall() { $('btnInstall').hidden = standalone() || !($('camera').hidden === false || $('login').hidden === false); }
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; showInstall(); });
+window.addEventListener('appinstalled', () => { installEvt = null; $('btnInstall').hidden = true; });
+$('btnInstall').addEventListener('click', async () => {
+  if (installEvt) { installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null; return; }
+  $('installText').innerHTML = isIOS
+    ? 'No iPhone, abra este link no <b>Safari</b>, toque no botão <b>Compartilhar</b> (quadrado com seta para cima) e escolha <b>Adicionar à Tela de Início</b>.'
+    : 'No Android, abra este link no <b>Chrome</b>, toque no menu <b>⋮</b> e escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.';
+  $('installHelp').hidden = false;
+});
+$('installOk').addEventListener('click', () => { $('installHelp').hidden = true; });
+
 /* ---------------- início ---------------- */
 (async function init() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -464,4 +480,5 @@ sb.auth.onAuthStateChange((ev, session) => {
   if (state.user) { show('camera'); refreshBadge(); sync(); }
   else show('login');
   renderLive();
+  showInstall();
 })();
